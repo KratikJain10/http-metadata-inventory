@@ -1,5 +1,7 @@
 # HTTP Metadata Inventory Service
 
+[![CI](https://github.com/KratikJain10/http-metadata-inventory/actions/workflows/ci.yml/badge.svg)](https://github.com/KratikJain10/http-metadata-inventory/actions/workflows/ci.yml)
+
 A high-performance, asynchronous HTTP metadata collection and caching service built with **FastAPI** and **MongoDB**. It fetches and stores HTTP headers, cookies, and full page source for any URL — with smart cache-miss handling via background workers.
 
 ---
@@ -90,6 +92,18 @@ docker-compose down
 docker-compose down -v
 ```
 
+### Using the Makefile
+
+```bash
+make run       # Build and start (foreground)
+make up        # Build and start (detached)
+make down      # Stop containers
+make clean     # Stop + wipe MongoDB data
+make test      # Run tests inside Docker
+make logs      # Tail API logs
+make docs      # Open Swagger UI in browser
+```
+
 ---
 
 ## API Reference
@@ -163,6 +177,30 @@ curl "http://localhost:8000/metadata?url=https://example.com"
 | Code | Condition |
 |------|-----------|
 | `422` | Invalid URL format or missing `url` query parameter |
+
+---
+
+### `GET /metadata/status` — Check Collection Status
+
+Poll this endpoint after receiving a `202` to know when background collection has finished.
+
+```bash
+curl "http://localhost:8000/metadata/status?url=https://httpbin.org/html"
+```
+
+**Response — `200 OK`:**
+```json
+{
+  "url": "https://httpbin.org/html",
+  "task_status": "pending"
+}
+```
+
+| `task_status` | Meaning |
+|---------------|---------|
+| `pending` | Background task is currently running |
+| `completed` | Data is ready — `GET /metadata` will return 200 |
+| `not_found` | No active task; URL was never requested or collection failed |
 
 ---
 
