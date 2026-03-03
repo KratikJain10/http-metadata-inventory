@@ -114,3 +114,13 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 async def health_check():
     """Simple health check endpoint for Docker and monitoring."""
     return {"status": "healthy", "service": "metadata-inventory"}
+
+
+# ── Root redirect ────────────────────────────────────────────────────────────
+
+
+@app.get("/", include_in_schema=False)
+async def root():
+    """Redirect root to the interactive API docs."""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/docs")
