@@ -75,6 +75,20 @@ class AcceptedResponse(BaseModel):
     )
 
 
+class StatusResponse(BaseModel):
+    """Response for GET /metadata/status — reflects background task state."""
+
+    url: str = Field(..., description="The queried URL.")
+    task_status: str = Field(
+        ...,
+        description=(
+            "'pending' — collection is in progress. "
+            "'completed' — data is available (GET /metadata will return 200). "
+            "'not_found' — no active task; URL may never have been requested."
+        ),
+    )
+
+
 class ErrorResponse(BaseModel):
     """Structured error response."""
 

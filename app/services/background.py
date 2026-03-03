@@ -104,3 +104,18 @@ class BackgroundTaskManager:
         """Return the number of currently active tasks."""
         self._cleanup_completed()
         return len(self._tasks)
+
+    def get_task_status(self, url: str) -> str:
+        """
+        Return the collection task status for a given URL.
+
+        Returns:
+            "pending"   — a background task is currently running for this URL.
+            "not_found" — no active task exists (either never scheduled,
+                          already completed, or previously failed).
+        """
+        task = self._tasks.get(url)
+        if task is not None and not task.done():
+            return "pending"
+        return "not_found"
+

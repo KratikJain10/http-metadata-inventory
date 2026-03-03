@@ -1,9 +1,10 @@
 """
 API routes for the HTTP Metadata Inventory Service.
 
-Provides two endpoints:
-- POST /metadata : Synchronously collect and store metadata for a URL.
-- GET  /metadata : Retrieve stored metadata, or trigger background collection.
+Provides three endpoints:
+- POST /metadata        : Synchronously collect and store metadata for a URL.
+- GET  /metadata        : Retrieve stored metadata, or trigger background collection.
+- GET  /metadata/status : Check the status of a background collection task.
 """
 
 import logging
@@ -17,6 +18,7 @@ from app.models.schemas import (
     ErrorResponse,
     MetadataRequest,
     MetadataResponse,
+    StatusResponse,
 )
 from app.repositories.metadata_repo import MetadataRepository
 from app.services.background import BackgroundTaskManager
@@ -175,3 +177,63 @@ async def get_metadata(
         status_code=status.HTTP_202_ACCEPTED,
         content=AcceptedResponse(url=url).model_dump(),
     )
+
+
+# ── GET /metadata/status ─────────────────────────────────────────────────────
+
+
+@router.get(
+    "/metadata/status",
+    response_model=StatusResponse,
+    responses={
+        422: {"model": ErrorResponse, "description": "Invalid URL format."},
+    },
+    summary="Check background collection status for a URL",
+    description=(
+        "Returns the current collection status for a given URL. "
+        "Useful for polling after receiving a 202 Accepted from GET /metadata.\n\n"
+        "- **`pending`** — a background task is currently in progress.\n"
+        "- **`completed`** — data has been collected and is available via GET /metadata.\n"
+        "- **`not_found`** — no active task; the URL may not have been requested yet."
+    ),
+)
+async def get_metadata_status(
+    url: str = Query(
+        ...,
+        description="The URL to check collection status for.",
+        examples=["https://example.com"],
+    ),
+) -> StatusResponse:
+    """
+    Check whether a background metadata collection task is pending or done.
+
+    Workflow:
+    1. Validate the URL format.
+    2. Check the database — if data exists, status is "completed".
+    3. Check the task manager — if a task is running, status is "pending".
+    4. Otherwise, status is "not_found".
+    """
+    # Validate URL format
+    from urllib.parse import urlparse as _urlparse
+    parsed = _urlparse(url)
+    if not parsed.scheme or parsed.scheme not in ("http", "https") or not parsed.netloc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid URL: '{url}'. URL must start with http:// or https://.",
+        )
+
+    repo = _get_repo()
+    task_manager = _get_task_manager()
+
+    # If data is already stored — it's completed
+    document = await repo.find_by_url(url)
+    if document is not None:
+        return StatusResponse(url=url, task_status="completed")
+
+    # If a task is in-flight — it's pending
+    raw_status = task_manager.get_task_status(url)
+    if raw_status == "pending":
+        return StatusResponse(url=url, task_status="pending")
+
+    # No task, no data
+    return StatusResponse(url=url, task_status="not_found")
