@@ -75,6 +75,10 @@ A high-performance, asynchronous HTTP metadata collection and caching service bu
 git clone https://github.com/KratikJain10/http-metadata-inventory.git
 cd http-metadata-inventory
 
+# (Optional) copy the example env file to customise settings
+# Not required — defaults work out of the box
+cp .env.example .env
+
 # Start the API and MongoDB
 docker-compose up --build
 ```
